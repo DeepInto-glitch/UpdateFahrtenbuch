@@ -1079,8 +1079,10 @@ class CustomWindow(QWidget):
 
 
     def on_accepted(self):
-        os.system(f"python {str(UPDATE_FILE)}")
-        sys.exit()
+      self.close()
+      QApplication.quit()  # Beendet die PyQt-Anwendung vollständig
+      os.system(f"python {str(UPDATE_FILE)}")
+      sys.exit()  # Beendet den gesamten Python-Prozess
 
     def update_patient_table(self):
         """Aktualisiere die Tabelle der Patienten."""
