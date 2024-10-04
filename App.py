@@ -1484,6 +1484,3 @@ if __name__ == "__main__":
     window = CustomWindow()
     window.show()
     sys.exit(app.exec_())
-
-
-# test if it worked
