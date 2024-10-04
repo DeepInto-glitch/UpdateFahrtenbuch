@@ -1079,7 +1079,7 @@ class CustomWindow(QWidget):
 
 
     def on_accepted(self):
-        self.close()
+        sys.exit()
         os.system(f"python {str(UPDATE_FILE)}")
 
     def update_patient_table(self):
