@@ -7,7 +7,7 @@ import shutil
 import os
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, 
                              QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QListWidget, QMessageBox, 
-                             QStackedWidget, QFrame, QTableWidget, QTableWidgetItem, QInputDialog)
+                             QStackedWidget, QFrame, QTableWidget, QDoubleSpinBox, QTableWidgetItem, QInputDialog, QDialogButtonBox)
 from PyQt5.QtCore import Qt
 from PyQt5 import QtWidgets
 from PyQt5 import QtWidgets as QtW
@@ -1005,16 +1005,142 @@ class CustomWindow(QWidget):
 
     def add_patient(self):
         """Füge einen neuen Patienten hinzu."""
-        vorname, ok_vorname = QInputDialog.getText(self, 'Neuer Patient', 'Vorname:')
-        nachname, ok_nachname = QInputDialog.getText(self, 'Neuer Patient', 'Nachname:')
-        nummer, ok_nummer = QInputDialog.getText(self, 'Neuer Patient', 'Nummer:')
-        
-        if ok_vorname and ok_nachname and ok_nummer:
-            patienten_daten.append({"vorname": vorname, "nachname": nachname, "nummer": nummer})
-            save_patienten_daten(patienten_daten)
-            self.update_patient_table()
-            self.update_patient_combobox()
-            logger.info('Patient wurde hinzugefügt')
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Neuer Patient")
+
+        # Styling
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #2C2F33;
+                color: #FFFFFF;
+                border-radius: 10px;
+                padding: 10px;
+                font-size: 16px;
+                border: 1px solid #7289DA;
+            }
+            QPushButton {
+                background-color: #2C2F33;
+                color: #FFFFFF;
+                border-radius: 10px;
+                padding: 10px;
+                font-size: 16px;
+                border: 1px solid #7289DA;
+            }
+            QPushButton:hover {
+                background-color: #7289DA;
+            }
+            QLabel {
+                color: #FFFFFF;
+            }
+            QLineEdit {
+                background-color: #2C2F33;
+                color: #FFFFFF;
+                border: 1px solid #7289DA;
+                font-size: 18px;
+            }
+        """)
+
+        # Layout für die gesamte Box
+        layout = QVBoxLayout()
+
+        # Vorname-Eingabefeld
+        vorname_label = QLabel("Vorname:")
+        vorname_input = QLineEdit()
+        layout.addWidget(vorname_label)
+        layout.addWidget(vorname_input)
+
+        # Nachname-Eingabefeld
+        nachname_label = QLabel("Nachname:")
+        nachname_input = QLineEdit()
+        layout.addWidget(nachname_label)
+        layout.addWidget(nachname_input)
+
+        # Layout für die Nummer (5 Felder)
+        nummer_layout = QHBoxLayout()
+        nummer_inputs = []
+        for _ in range(5):
+            nummer_input = QLineEdit()
+            nummer_input.setMaxLength(1)  # Nur eine Zahl pro Feld
+            nummer_input.setFixedWidth(40)  # Feste Breite für jede Zelle
+            nummer_input.setAlignment(Qt.AlignCenter)
+            nummer_input.setStyleSheet("""
+                background-color: #2C2F33;
+                color: #FFFFFF;
+                border: 1px solid #7289DA;
+                font-size: 18px;
+            """)
+            nummer_inputs.append(nummer_input)
+            nummer_layout.addWidget(nummer_input)
+
+        layout.addWidget(QLabel("Patientennummer:"))
+        layout.addLayout(nummer_layout)
+
+        # Methode zum automatischen Weiterspringen
+        def focus_next_nummer_input():
+            for i in range(len(nummer_inputs)):
+                if len(nummer_inputs[i].text()) == 1 and i < len(nummer_inputs) - 1:
+                    nummer_inputs[i + 1].setFocus()
+
+        # Verbinde jedes Feld mit der Funktion
+        for nummer_input in nummer_inputs:
+            nummer_input.textChanged.connect(focus_next_nummer_input)
+
+        # Button zum Speichern
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        layout.addWidget(button_box)
+
+        # Button Aktionen
+        def on_ok_clicked():
+            vorname = vorname_input.text()
+            nachname = nachname_input.text()
+            nummer = ''.join([input.text() for input in nummer_inputs])
+
+            if vorname and nachname and len(nummer) == 5:
+                patienten_daten.append({"vorname": vorname, "nachname": nachname, "nummer": nummer})
+                save_patienten_daten(patienten_daten)
+                self.update_patient_table()
+                self.update_patient_combobox()
+                logger.info('Patient wurde hinzugefügt')
+                dialog.accept()
+                
+            else:
+                msg_box = QMessageBox(QMessageBox.Information, "Fehler", "Patient konnte nicht hinzugefügt werden.")
+                style_sheet = """
+                QMessageBox {
+                    background-color: #2C2F33;
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                    padding: 10px;
+                    font-size: 16px;
+                    border: 1px solid #7289DA;
+                }
+                QMessageBox QPushButton {
+                    background-color: #2C2F33;
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                    padding: 10px;
+                    font-size: 16px;
+                    border: 1px solid #7289DA;
+                }
+                QMessageBox QLabel {
+                    color: #FFFFFF;
+                }
+                QMessageBox QPushButton:hover {
+                    background-color: #7289DA;
+                }
+                """
+                msg_box.setStyleSheet(style_sheet)
+                msg_box.exec_()
+
+        def on_cancel_clicked():
+            dialog.reject()
+
+        # Verbindung der Buttons mit den Aktionen
+        button_box.accepted.connect(on_ok_clicked)
+        button_box.rejected.connect(on_cancel_clicked)
+
+        dialog.setLayout(layout)
+        dialog.exec_()
 
     def delete_patient(self):
         """Lösche ausgewählten Patienten."""
@@ -1079,10 +1205,8 @@ class CustomWindow(QWidget):
 
 
     def on_accepted(self):
-      self.close()
-      QApplication.quit()  # Beendet die PyQt-Anwendung vollständig
-      os.system(f"python {str(UPDATE_FILE)}")
-      sys.exit()  # Beendet den gesamten Python-Prozess
+        self.close()
+        os.system(f"python {str(UPDATE_FILE)}")
 
     def update_patient_table(self):
         """Aktualisiere die Tabelle der Patienten."""
@@ -1330,15 +1454,124 @@ class CustomWindow(QWidget):
 
     def add_strecke(self):
         """Füge eine neue Strecke hinzu."""
-        von, ok_von = QInputDialog.getText(self, 'Neue Strecke', 'Von:')
-        zu, ok_zu = QInputDialog.getText(self, 'Neue Strecke', 'Zu:')
-        distanz, ok_distanz = QInputDialog.getDouble(self, 'Neue Strecke', 'Distanz (km):')
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Neue Strecke")
 
-        if ok_von and ok_zu and ok_distanz >= 0:
-            strecken_daten.append({"start": von, "ziel": zu, "distanz": distanz})
-            save_strecken_daten(strecken_daten)
-            self.update_table()
-            logger.info('Strecke hinzugefügt')
+        # Styling
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #2C2F33;
+                color: #FFFFFF;
+                border-radius: 10px;
+                padding: 10px;
+                font-size: 16px;
+                border: 1px solid #7289DA;
+            }
+            QPushButton {
+                background-color: #2C2F33;
+                color: #FFFFFF;
+                border-radius: 10px;
+                padding: 10px;
+                font-size: 16px;
+                border: 1px solid #7289DA;
+            }
+            QPushButton:hover {
+                background-color: #7289DA;
+            }
+            QLabel {
+                color: #FFFFFF;
+            }
+            QLineEdit {
+                background-color: #2C2F33;
+                color: #FFFFFF;
+                border: 1px solid #7289DA;
+                font-size: 18px;
+            }
+            QDoubleSpinBox {
+                background-color: #2C2F33;
+                color: #FFFFFF;
+                border: 1px solid #7289DA;
+                font-size: 18px;
+            }
+        """)
+
+        # Layout für die gesamte Box
+        layout = QVBoxLayout()
+
+        # "Von" Eingabefeld
+        von_label = QLabel("Start:")
+        von_input = QLineEdit()
+        layout.addWidget(von_label)
+        layout.addWidget(von_input)
+
+        # "Zu" Eingabefeld
+        zu_label = QLabel("Ziel:")
+        zu_input = QLineEdit()
+        layout.addWidget(zu_label)
+        layout.addWidget(zu_input)
+
+        # Distanz Eingabefeld (DoubleSpinBox für km)
+        distanz_label = QLabel("Distanz (km):")
+        distanz_input = QDoubleSpinBox()
+        distanz_input.setRange(0, 1000)  # Setzt eine vernünftige Spannweite für die km
+        distanz_input.setDecimals(2)  # Zwei Nachkommastellen für die Kilometer
+        layout.addWidget(distanz_label)
+        layout.addWidget(distanz_input)
+
+        # Button zum Speichern
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        layout.addWidget(button_box)
+
+        # Button Aktionen
+        def on_ok_clicked():
+            von = von_input.text()
+            zu = zu_input.text()
+            distanz = distanz_input.value()
+
+            if von and zu and distanz > 0:
+                strecken_daten.append({"start": von, "ziel": zu, "distanz": distanz})
+                save_strecken_daten(strecken_daten)
+                self.update_table()
+                logger.info('Strecke hinzugefügt')
+                dialog.accept()
+            else:
+                msg_box = QMessageBox(QMessageBox.Information, "Fehler", "Bitte füllen Sie alle Felder korrekt aus.")
+                style_sheet = """
+                QMessageBox {
+                    background-color: #2C2F33;
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                    padding: 10px;
+                    font-size: 16px;
+                    border: 1px solid #7289DA;
+                }
+                QMessageBox QPushButton {
+                    background-color: #2C2F33;
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                    padding: 10px;
+                    font-size: 16px;
+                    border: 1px solid #7289DA;
+                }
+                QMessageBox QLabel {
+                    color: #FFFFFF;
+                }
+                QMessageBox QPushButton:hover {
+                    background-color: #7289DA;
+                }
+                """
+                msg_box.setStyleSheet(style_sheet)
+                msg_box.exec_()
+
+        def on_cancel_clicked():
+            dialog.reject()
+
+        # Verbindung der Buttons mit den Aktionen
+        button_box.accepted.connect(on_ok_clicked)
+        button_box.rejected.connect(on_cancel_clicked)
+
+        dialog.setLayout(layout)
+        dialog.exec_()
 
     def delete_strecke(self):
         """Lösche ausgewählte Strecken."""
@@ -1478,6 +1711,7 @@ class CustomWindow(QWidget):
         if reply == QMessageBox.Yes:
             logger.info('App geschlossen')
             self.close()
+            sys.exit()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
